@@ -22,6 +22,7 @@
 
 from pid import PIDAgent
 from keyframes import hello
+import numpy as np
 
 
 class AngleInterpolationAgent(PIDAgent):
@@ -42,7 +43,43 @@ class AngleInterpolationAgent(PIDAgent):
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
-
+        t = perception.time
+        for joint_iter in range(len(keyframes[0])):
+            joint_name = keyframes[0][joint_iter]
+            joint_timestamps = keyframes[1][joint_iter]
+            joint_keyframes = keyframes[2][joint_iter]
+            
+            interval_indicator = 0
+            
+            for j in range(len(joint_timestamps)):
+                if joint_timestamps[j] > (t + 0.01) % 10:
+                    interval_indicator = j
+                    break
+                    
+            if interval_indicator == 0:
+                target_joints[joint_name] = joint_keyframes[j][0]
+            else:
+                stime = joint_timestamps[interval_indicator -1]
+                etime = joint_timestamps[interval_indicator]
+                interval_etime = etime - stime
+                
+                if interval_indicator == 0:
+                    point0 = np.array([0.0,0.0])
+                    point1 = np.array([0.0,0.0])
+                else:
+                    point0 = np.array([joint_keyframes[interval_indicator -1][0], 0.0])
+                    point1 = np.array([joint_keyframes[interval_indicator -1][0] + joint_keyframes[interval_indicator -1][2][2], joint_keyframes[interval_indicator -1][2][1]/ interval_etime])
+                point2 = np.array([joint_keyframes[interval_indicator][0] + joint_keyframes[interval_indicator][1][2], (joint_keyframes[interval_indicator][1][1] + etime - stime)/interval_etime])
+                point3 = np.array([joint_keyframes[interval_indicator][0], 1.0])
+            
+                interval_time = (((t +0.01) % 10) - stime) / interval_etime
+                target_joints[joint_name] = ((1 - interval_time) ** 3 * point0 + 3 * (1 - interval_time) ** 2 * interval_time * point1 + 3 * (1 - interval_time) * interval_time ** 2 * point2 + interval_time ** 3 * point3)[0]
+            
+        for i in ['HeadYaw','HeadPitch','LShoulderPitch','LShoulderRoll','LElbowYaw','LElbowRoll','LHipYawPitch','LHipRoll','LHipPitch','LKneePitch','LAnklePitch','LAnkleRoll','RShoulderPitch','RShoulderRoll','RElbowYaw','RElbowRoll','RHipYawPitch','RHipRoll','RHipPitch','RKneePitch','RAnklePitch','RAnkleRoll']:
+            try:
+                tester = target_joints[i]
+            except KeyError:
+                target_joints[i] = 0.0
         return target_joints
 
 if __name__ == '__main__':
